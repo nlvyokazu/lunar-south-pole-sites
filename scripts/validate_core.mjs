@@ -150,7 +150,7 @@ export function validateBundle(bundle) {
         if (!Array.isArray(s[name])) f.push(`${k}: ${name} is missing or not an array`);
       }
       if (!isObj(s.windows)) f.push(`${k}: windows is missing or not an object`);
-      if (!isObj(s.stats)) f.push(`${k}: stats is missing or not an object`);
+      if (s.stats !== undefined && !isObj(s.stats)) f.push(`${k}: stats is present but not an object`);
     }
   });
 

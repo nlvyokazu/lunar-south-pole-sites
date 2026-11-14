@@ -52,7 +52,7 @@ export interface Site {
   earthHorizon: number[];
   lit: number[];
   windows: SiteWindows;
-  stats: Stats;
+  stats?: Stats;
 }
 
 export interface Bundle {
