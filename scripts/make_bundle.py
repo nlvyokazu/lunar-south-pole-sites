@@ -285,7 +285,7 @@ def site_series(key, label, lat, lon, t, sun_me, earth_me, hor, step_hours):
     d_sun, d_earth = sun_me - s, earth_me - s  # topocentric
     sun_alt, sun_az = alt_az(d_sun, up, east, north)
     earth_alt, earth_az = alt_az(d_earth, up, east, north)
-    r_sun = np.degrees(np.arcsin(SUN_RADIUS_KM / np.linalg.norm(d_sun, axis=1)))
+    r_sun = _r5(np.degrees(np.arcsin(SUN_RADIUS_KM / np.linalg.norm(d_sun, axis=1))))
     r_earth = np.degrees(np.arcsin(EARTH_RADIUS_KM / np.linalg.norm(d_earth, axis=1)))
 
     # round first, derive after
@@ -305,7 +305,7 @@ def site_series(key, label, lat, lon, t, sun_me, earth_me, hor, step_hours):
         "label": label, "lat": lat, "lon": lon, "coordinates_note": COORD_NOTE, "t": t,
         "sunAlt": sun_alt.tolist(), "sunAz": sun_az.tolist(), "sunHorizon": sun_h.tolist(),
         "earthAlt": earth_alt.tolist(), "earthAz": earth_az.tolist(),
-        "earthHorizon": earth_h.tolist(), "lit": lit.tolist(),
+        "earthHorizon": earth_h.tolist(), "lit": lit.tolist(), "sunRadius": r_sun.tolist(),
         "windows": {"sunlit": find_windows(sunlit, t), "dark": find_windows(~sunlit, t),
                     "comms": find_windows(comms, t)},
         "horizon_is_placeholder": not hor.real,
@@ -693,7 +693,7 @@ def t_pipeline():
                  "sun_radius_km", "sunlit_rule", "comms_rule", "site_model", "horizon_complete",
                  "horizon_files"}
     site_keys = {"label", "lat", "lon", "coordinates_note", "t", "sunAlt", "sunAz", "sunHorizon",
-                 "earthAlt", "earthAz", "earthHorizon", "lit", "windows",
+                 "earthAlt", "earthAz", "earthHorizon", "lit", "sunRadius", "windows",
                  "horizon_is_placeholder", "horizon_source"}
     _ok(set(b1["meta"]) == meta_keys, set(b1["meta"]) ^ meta_keys)
     _ok(all(set(s) == site_keys for s in b1["sites"].values()), "site keys")

@@ -51,6 +51,7 @@ export interface Site {
   earthAz: number[];
   earthHorizon: number[];
   lit: number[];
+  sunRadius: number[];
   windows: SiteWindows;
   stats?: Stats;
 }
