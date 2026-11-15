@@ -8,6 +8,7 @@ import type { Engine, Summary, RankRow, Transition, Overall } from './engine';
 import { loadEngine } from './engine';
 import { checkAgainstBundle } from './lit';
 import { showSweep, clearSweep, runBenchmark } from './sweep';
+import { showElevation } from './elevation';
 
 const KEYS = ['malapert_a', 'nobile_w', 'amundsen'] as const;
 const HOUR_MS = 3600000;
@@ -92,6 +93,8 @@ const startIn = byId<HTMLInputElement>('start');
 const endIn = byId<HTMLInputElement>('end');
 const marginIn = byId<HTMLInputElement>('margin');
 const marginOut = byId<HTMLElement>('margin-out');
+const elevEl = byId<HTMLElement>('elevation');
+const elevNote = byId<HTMLElement>('elevation-note');
 const thSun = byId<HTMLInputElement>('th-sun');
 const thEarth = byId<HTMLInputElement>('th-earth');
 const thDark = byId<HTMLInputElement>('th-dark');
@@ -388,6 +391,7 @@ function render(): void {
   const rows = result.rows;
 
   updateSweep(b, rangeOk, from, to, margin);
+showElevation(elevEl, elevNote, b, Object.fromEntries(Object.entries(b.sites).map(([k, s]) => [k, labelOf(k, s)])), rangeOk, from, to, margin);
 
   tbody.replaceChildren();
   windowsEl.replaceChildren();
