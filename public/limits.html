@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Limits and sources | Lunar south pole site comparison</title>
-<meta name="description" content="Scope, definitions, data sources and known limitations of the lunar south pole site comparison. Geometry only, with no power or thermal model.">
+<meta name="description" content="Scope, definitions, data sources, AI use and known limitations of the lunar south pole site comparison. Geometry only, with no power or thermal model.">
 <link rel="stylesheet" href="./site.css">
 <link rel="icon" href="./favicon.svg" type="image/svg+xml">
 </head>
@@ -14,7 +14,7 @@
 <p class="banner"><span class="label">Scope:</span> Geometry only. No power, thermal, panel or antenna model.</p>
 
 <h2>What this tool computes</h2>
-<p>Hourly Sun and Earth positions for 365 days starting 2026-11-15 00:00 UTC at three fixed sites, compared with a terrain horizon for each site. Geometry only: no power, thermal, panel or antenna model. Results say whether a site meets the thresholds you set, nothing about whether a mission could use it.</p>
+<p>Hourly Sun and Earth positions for 365 days starting 2026-11-15 00:00 UTC at three fixed sites, compared with a terrain horizon for each site. Results say whether a site meets the thresholds you set. They say nothing about whether a mission could use it.</p>
 
 <h2>Definitions</h2>
 <dl>
@@ -24,16 +24,24 @@
 <dd>The center of the Earth is above the terrain horizon.</dd>
 <dt>Horizon margin</dt>
 <dd>The horizon margin slider raises the horizon by the chosen number of degrees for both bodies.</dd>
-<dt>Where each result is computed</dt>
-<dd>Sun-visible hours are computed by a C++ kernel compiled to WebAssembly in the browser when it loads. If the module does not load, the margin slider is disabled and the page uses the precomputed Sun-visible values at margin 0. Earth-in-view is computed in TypeScript.</dd>
+<dt>Rank</dt>
+<dd>Rank only orders the three sites by fixed rules: sites that meet all thresholds first, then fewer failed checks, then higher Sun-visible percentage, then higher Earth-in-view percentage. It is not a recommendation, and all three sites can fail every threshold.</dd>
 <dt>Windows at the range edges</dt>
-<dd>Windows that touch the start or end of the selected range are shown with a leading <code>&gt;=</code> because the true length is longer.</dd>
+<dd>Windows that touch the start or end of the selected range are shown with a leading <code>&gt;=</code> because the true length is longer. A site cannot pass a maximum-length limit on such a window alone.</dd>
 </dl>
+
+<h2>Where the calculations run</h2>
+<ul>
+<li>In your browser, a C++ engine compiled to WebAssembly computes Sun-disc visibility, Sun and Earth flags, windows, percentages, threshold checks, ranking and the next sunset and Earthset.</li>
+<li>The page code, written in TypeScript, reads your inputs, formats dates and draws the table.</li>
+<li>When the page starts, the engine output at margin 0 is checked against the precomputed data. If the engine does not load or the check fails, the page says so, disables the margin slider, and uses TypeScript copies of the same logic with the precomputed Sun values at margin 0.</li>
+<li>The precomputed data is made offline by Python scripts, not by C++. Those scripts read the SPICE kernels and the terrain model once. The page then loads the result as a fixed file.</li>
+</ul>
 
 <h2>Data sources</h2>
 <ul>
-<li>Positions: NASA NAIF SPICE kernels <code>DE440s</code> (planetary ephemeris), <code>naif0012.tls</code> (leap seconds), <code>moon_pa_de440_200625.bpc</code> and <code>moon_de440_250416.tf</code> (Moon orientation, mean Earth frame), read with spiceypy.</li>
-<li>Terrain: LRO LOLA <code>LDEM_75S_120M</code> polar digital elevation model, 120 m per pixel, from the Imbrium mirror at imbrium.mit.edu of the PDS product.</li>
+<li>Positions: NASA NAIF SPICE kernels <code>de440s.bsp</code> (planetary ephemeris), <code>naif0012.tls</code> (leap seconds), <code>moon_pa_de440_200625.bpc</code> and <code>moon_de440_250416.tf</code> (Moon orientation, mean Earth frame), read with spiceypy.</li>
+<li>Terrain: LRO LOLA <code>LDEM_75S_120M</code> polar digital elevation model, 120 m per pixel, from the Imbrium mirror at imbrium.mit.edu of the NASA PDS product.</li>
 <li>Horizon masks are scanned out to 150 km at 0.5 degree azimuth steps.</li>
 <li>Compiler: Emscripten 6.0.11.</li>
 </ul>
@@ -41,16 +49,19 @@
 <h2>Limitations</h2>
 <ul>
 <li>Samples are hourly, so sunset and Earthset times are accurate to within the hour.</li>
-<li>No atmospheric refraction is applied (the Moon has none that matters here).</li>
+<li>No atmospheric refraction is applied.</li>
 <li>The Sun's disk is tested against the horizon height at the Sun's center azimuth.</li>
 <li>Earth passing in front of the Sun is not modelled.</li>
-<li>Aberration is applied at the Moon's center only.</li>
+<li>Aberration is applied at the Moon's center only. Site rotation is not modelled.</li>
 <li>Only the three fixed sites are available, with no custom coordinates.</li>
 <li>The terrain model has 120 m pixels. For Malapert A and Nobile the highest nearby terrain is about one pixel from the site, so those two horizons depend on the exact site position. This sensitivity has not been tested.</li>
-<li>The terrain model's frame label (DE421 mean Earth) differs slightly from the frame used for positions (DE440 mean Earth). The offset is believed to be under 1 arcsecond but was not verified here.</li>
+<li>The terrain model's frame label (DE421 mean Earth) differs from the frame used for positions (DE440 mean Earth). The size of the resulting offset has not been quantified here.</li>
 <li>The numbers come directly from the SPICE kernels and have not been compared with JPL Horizons output by this project.</li>
-<li>The Amundsen site coordinates (88.5 S, 124.0 E) were supplied by the team and have not been checked against a published crater position, so read the label as &ldquo;near Amundsen&rdquo;.</li>
+<li>All three site coordinates were supplied by the team, are unverified, and are treated as mean Earth coordinates. The Amundsen point (88.5 S, 124.0 E) has not been checked against a published crater position, so read the label as &ldquo;near Amundsen&rdquo;.</li>
 </ul>
+
+<h2>AI use</h2>
+<p>Some code in this project was written with SI chat assistants, including Claude and ChatGPT. That covers some of the C++ engine, the TypeScript page, the Python data scripts and the tests. The team chose the scope and the three sites, and ran every command and test on its own machine. Because the engine, the TypeScript model and the tests were all written to the same specification, the tests show that they agree with each other and with the precomputed data. They are not an independent check of the astronomy.The code has been fully reviewed. </p>
 
 <h2>Privacy and terms</h2>
 <p>The page loads only its own files. No cookies, no analytics, no accounts, no data sent anywhere. Provided as is, for planning discussion only, no warranty.</p>
