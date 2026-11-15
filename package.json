@@ -8,7 +8,8 @@
     "build": "tsc && vite build",
     "preview": "vite preview",
     "check": "node scripts/validate_bundle.mjs public/data/bundle.json",
-    "test:model": "node --experimental-strip-types --disable-warning=ExperimentalWarning test/model.test.mjs"
+    "test:model": "node --experimental-strip-types --disable-warning=ExperimentalWarning test/model.test.mjs",
+    "test:engine": "node --experimental-strip-types --disable-warning=ExperimentalWarning test/engine.test.mjs"
   },
   "devDependencies": {
     "typescript": "5.9.3",
