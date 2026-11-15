@@ -1,0 +1,301 @@
+:root {
+  color-scheme: dark;
+  --bg: #14181d;
+  --panel: #1b2027;
+  --border: #3a424d;
+  --text: #e8ecf1;
+  --muted: #aab3bf;
+  --sun: #f2b84b;
+  --earth: #5db7e8;
+  --mono: ui-monospace, Consolas, monospace;
+}
+
+*, *::before, *::after {
+  box-sizing: border-box;
+}
+
+html {
+  -webkit-text-size-adjust: 100%;
+}
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font-family: system-ui, sans-serif;
+  font-size: 1rem;
+  line-height: 1.55;
+}
+
+header, main, footer {
+  max-width: 64rem;
+  margin: 0 auto;
+  padding: 1.5rem 1rem;
+}
+
+h1, h2, h3 {
+  line-height: 1.25;
+  font-weight: 700;
+}
+
+h1 {
+  margin: 0 0 1rem;
+  font-size: 1.75rem;
+}
+
+h2 {
+  margin: 2rem 0 0.75rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--border);
+  font-size: 1.25rem;
+}
+
+h3 {
+  margin: 1.5rem 0 0.5rem;
+  font-size: 1.0625rem;
+}
+
+p, ul, ol, dl, table, fieldset {
+  margin: 0 0 1rem;
+}
+
+ul, ol {
+  padding-left: 1.25rem;
+}
+
+li {
+  margin: 0 0 0.4rem;
+}
+
+dt {
+  font-weight: 700;
+}
+
+dd {
+  margin: 0 0 0.75rem;
+}
+
+a {
+  color: var(--earth);
+  text-decoration: underline;
+}
+
+a:hover {
+  color: var(--text);
+}
+
+a:focus-visible,
+button:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible,
+summary:focus-visible {
+  outline: 2px solid var(--sun);
+  outline-offset: 2px;
+}
+
+.table-wrap {
+  max-width: 100%;
+  overflow-x: auto;
+  margin: 0 0 1rem;
+}
+
+.table-wrap table {
+  margin: 0;
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  background: var(--panel);
+  font-size: 0.9375rem;
+}
+
+th, td {
+  padding: 0.4rem 0.6rem;
+  border: 1px solid var(--border);
+  text-align: left;
+  vertical-align: top;
+}
+
+th {
+  color: var(--muted);
+  font-weight: 700;
+}
+
+.num, td.num, th.num {
+  font-family: var(--mono);
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+
+button {
+  min-height: 2.5rem;
+  padding: 0.45rem 0.9rem;
+  border: 1px solid var(--border);
+  border-radius: 2px;
+  background: var(--panel);
+  color: var(--text);
+  font: inherit;
+  cursor: pointer;
+}
+
+button:hover {
+  color: var(--sun);
+}
+
+button:disabled {
+  color: var(--muted);
+  cursor: not-allowed;
+}
+
+input, select, textarea {
+  min-height: 2.5rem;
+  max-width: 100%;
+  padding: 0.4rem 0.5rem;
+  border: 1px solid var(--border);
+  border-radius: 2px;
+  background: var(--bg);
+  color: var(--text);
+  font: inherit;
+}
+
+input[type="number"],
+input[type="date"],
+input[type="time"] {
+  font-family: var(--mono);
+}
+
+input[type="range"] {
+  width: 100%;
+  min-height: 2rem;
+  padding: 0;
+  border: 0;
+  background: none;
+  accent-color: var(--sun);
+}
+
+input[type="checkbox"],
+input[type="radio"] {
+  min-height: 0;
+  accent-color: var(--sun);
+}
+
+label {
+  display: block;
+  margin: 0 0 0.25rem;
+  color: var(--text);
+}
+
+fieldset {
+  min-width: 0;
+  padding: 0.75rem 1rem 1rem;
+  border: 1px solid var(--border);
+  border-radius: 2px;
+  background: var(--panel);
+}
+
+legend {
+  padding: 0 0.4rem;
+  color: var(--muted);
+}
+
+.banner {
+  margin: 0 0 1rem;
+  padding: 0.6rem 0.8rem;
+  border: 1px solid var(--border);
+  border-radius: 2px;
+  background: var(--panel);
+}
+
+.banner-sun {
+  border-color: var(--sun);
+}
+
+.banner-earth {
+  border-color: var(--earth);
+}
+
+.banner .label {
+  margin-right: 0.4rem;
+  font-weight: 700;
+}
+
+small, .small {
+  color: var(--muted);
+  font-size: 0.8125rem;
+}
+
+.muted {
+  color: var(--muted);
+}
+
+.sun {
+  color: var(--sun);
+}
+
+.earth {
+  color: var(--earth);
+}
+
+code, kbd, samp, pre {
+  font-family: var(--mono);
+  font-size: 0.9em;
+}
+
+code, kbd, samp {
+  padding: 0.05rem 0.3rem;
+  border: 1px solid var(--border);
+  border-radius: 2px;
+  background: var(--panel);
+  overflow-wrap: anywhere;
+}
+
+pre {
+  margin: 0 0 1rem;
+  padding: 0.6rem 0.8rem;
+  border: 1px solid var(--border);
+  border-radius: 2px;
+  background: var(--panel);
+  overflow-x: auto;
+}
+
+pre code {
+  padding: 0;
+  border: 0;
+  background: none;
+}
+
+footer {
+  margin-top: 2rem;
+  border-top: 1px solid var(--border);
+  color: var(--muted);
+  font-size: 0.875rem;
+}
+
+footer ul {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem 1.5rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+footer li {
+  margin: 0;
+}
+
+@media (max-width: 40rem) {
+  header, main, footer {
+    padding: 1rem 0.75rem;
+  }
+
+  h1 {
+    font-size: 1.5rem;
+  }
+
+  th, td {
+    padding: 0.35rem 0.45rem;
+  }
+}

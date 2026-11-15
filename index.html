@@ -1,17 +1,96 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
-  <head>
-    <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Lunar south-pole sites: bundle smoke test</title>
-    <style>
-      body { font-family: system-ui, "Segoe UI", sans-serif; font-size: 16px; line-height: 1.5; margin: 1rem; }
-      pre { font-family: ui-monospace, Consolas, monospace; white-space: pre-wrap; }
-    </style>
-  </head>
-  <body>
-    <pre id="out">Loading ./data/bundle.json ...</pre>
-    <noscript>JavaScript is required.</noscript>
-    <script type="module" src="/src/main.ts"></script>
-  </body>
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lunar south pole site comparison</title>
+<meta name="description" content="Compare three lunar south pole sites by Sun and Earth elevation against the terrain horizon, with sunlight and Earth-in-view windows and a thresholds table.">
+<link rel="icon" href="./favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="./site.css">
+<style>
+table { border-collapse: collapse; width: 100%; }
+th, td { border: 1px solid var(--border, #3a424d); padding: 0.35rem 0.5rem; text-align: left; vertical-align: top; }
+thead th { background: var(--panel, #1b2027); }
+td.num { text-align: right; font-family: var(--mono, ui-monospace, Consolas, monospace); }
+fieldset { border: 1px solid var(--border, #3a424d); border-radius: 2px; margin: 0 0 1rem; padding: 0.75rem; }
+.controls { display: grid; grid-template-columns: repeat(auto-fit, minmax(15rem, 1fr)); gap: 0.75rem; }
+.controls label { display: block; }
+input[type="text"], input[type="date"] { background: var(--panel, #1b2027); color: var(--text, #e8ecf1); border: 1px solid var(--border, #3a424d); border-radius: 2px; padding: 0.3rem; width: 100%; box-sizing: border-box; }
+input[type="range"] { width: 100%; }
+</style>
+</head>
+<body>
+<main>
+<h1>Lunar south pole site comparison</h1>
+<p>This page compares three lunar south pole sites over a date range you choose. For each site it shows how much of the time the Sun and the Earth are above the local terrain horizon, the longest dark and Earth-out periods, and the time to the next sunset and Earthset. It then checks each site against thresholds you set. Geometry only: there is no power, thermal or antenna model. <a href="./limits.html">Limits and method</a>.</p>
+<p id="status" class="small muted" aria-live="polite">Loading data</p>
+<div id="warnings"></div>
+
+<h2>Controls</h2>
+<fieldset>
+<legend>Range and horizon</legend>
+<div class="controls">
+<label>Start day (UTC)<input type="date" id="start"></label>
+<label>End day (UTC, included)<input type="date" id="end"></label>
+<label>Horizon margin: <span id="margin-out">0.0</span> deg, applied to the Sun and Earth horizons<input type="range" id="margin" min="0" max="5" step="0.1" value="0" disabled></label>
+<label>Reference time (UTC) for next sunset and Earthset<input type="text" id="ref" value="" placeholder="2026-11-15 00:00"></label>
+</div>
+</fieldset>
+<fieldset>
+<legend>Example thresholds</legend>
+<div class="controls">
+<label>Minimum Sun-visible (%)<input type="text" id="th-sun" value="40" inputmode="decimal"></label>
+<label>Minimum Earth-in-view (%)<input type="text" id="th-earth" value="40" inputmode="decimal"></label>
+<label>Maximum longest dark period (h)<input type="text" id="th-dark" value="200" inputmode="decimal"></label>
+<label>Maximum longest Earth-out period (h)<input type="text" id="th-out" value="200" inputmode="decimal"></label>
+</div>
+<p class="small muted">These are example values. Change them to your own.</p>
+</fieldset>
+<div id="messages"></div>
+
+<h2>Comparison</h2>
+<p id="range-note" class="small muted"></p>
+<p><label><input type="checkbox" id="only-meets"> Show only sites that meet all thresholds</label></p>
+<div class="table-wrap">
+<table>
+<thead>
+<tr>
+<th scope="col">Site</th>
+<th scope="col">Sun-visible %</th>
+<th scope="col">Longest Sun-visible</th>
+<th scope="col">Longest dark</th>
+<th scope="col">Earth-in-view %</th>
+<th scope="col">Longest Earth-out</th>
+<th scope="col">Next sunset</th>
+<th scope="col">Next Earthset</th>
+<th scope="col">Sun-visible check</th>
+<th scope="col">Earth-in-view check</th>
+<th scope="col">Dark limit check</th>
+<th scope="col">Earth-out limit check</th>
+<th scope="col">Overall</th>
+<th scope="col">Rank</th>
+</tr>
+</thead>
+<tbody id="rows">
+<tr><td colspan="14">Loading data</td></tr>
+</tbody>
+</table>
+</div>
+<p class="small muted">Samples are hourly. A length shown with ">=" belongs to a run that touches the edge of the selected range and may continue past it. A site cannot pass a maximum-length limit on such a run alone. Next sunset and Earthset are searched over the whole data set, not only the selected range.</p>
+<noscript><p>This page needs JavaScript to compute the table. The method and limits are described in <a href="./limits.html">limits.html</a>.</p></noscript>
+
+<h2>Windows per site</h2>
+<div id="windows"></div>
+
+<h2>Data details</h2>
+<div id="details"></div>
+</main>
+<footer>
+<ul>
+<li><a href="./limits.html">Limits and method</a></li>
+</ul>
+<p class="small muted">Code written with AI assistance. See <a href="./limits.html">limits.html</a>.</p>
+</footer>
+<script type="module" src="/src/main.ts"></script>
+</body>
 </html>
