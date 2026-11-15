@@ -2,7 +2,7 @@
 // Node (scripts/validate_bundle.mjs) and in the browser (src/main.ts).
 // Timestamps mean UTC: they carry no timezone suffix and are parsed by appending "Z".
 
-const SERIES = ['sunAlt', 'sunAz', 'sunHorizon', 'earthAlt', 'earthAz', 'earthHorizon', 'lit'];
+const SERIES = ['sunAlt', 'sunAz', 'sunHorizon', 'earthAlt', 'earthAz', 'earthHorizon', 'lit', 'sunRadius'];
 const WINDOW_KINDS = ['sunlit', 'dark', 'comms'];
 const TS_RE = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{1,9})?$/;
 const SHA256_RE = /^[0-9a-fA-F]{64}$/;
