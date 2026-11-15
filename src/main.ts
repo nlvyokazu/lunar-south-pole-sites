@@ -7,12 +7,25 @@ import {
 import type { Engine, Summary, RankRow, Transition, Overall } from './engine';
 import { loadEngine } from './engine';
 import { checkAgainstBundle } from './lit';
+import { showSweep, clearSweep, runBenchmark } from './sweep';
 
 const KEYS = ['malapert_a', 'nobile_w', 'amundsen'] as const;
 const HOUR_MS = 3600000;
 const DAY_MS = 86400000;
 const COLS = 14;
 const MAX_WINDOWS = 60;
+
+// Display names. The data file is not edited, so the page chooses its own labels.
+const DISPLAY: Record<string, string> = {
+  malapert_a: 'Malapert A rim',
+  nobile_w: 'Nobile Crater W rim',
+  amundsen: 'Near Amundsen',
+};
+
+function labelOf(key: string, s: SiteData): string {
+  const d = DISPLAY[key];
+  return d !== undefined ? d : s.label;
+}
 
 // One set of calculation functions. The C++ engine fills it when it is running.
 // The TypeScript model fills it when the engine is not available.
@@ -92,12 +105,17 @@ const rangeNote = byId<HTMLElement>('range-note');
 const tbody = byId<HTMLTableSectionElement>('rows');
 const windowsEl = byId<HTMLElement>('windows');
 const detailsEl = byId<HTMLElement>('details');
+const sweepEl = byId<HTMLElement>('sweep');
+const sweepNote = byId<HTMLElement>('sweep-note');
+const benchBtn = byId<HTMLButtonElement>('bench-run');
+const benchOut = byId<HTMLElement>('bench-out');
 
 let bundle: Bundle | null = null;
 let engine: Engine | null = null;
 let calc: Calc = tsCalc;
 let engineState: 'loading' | 'ok' | 'failed' = 'loading';
 let engineMaxDiff = 0;
+let lastRange: { from: number; to: number } | null = null;
 
 function validate(raw: unknown): Bundle {
   if (typeof raw !== 'object' || raw === null) throw new Error('data file is not an object');
@@ -230,12 +248,33 @@ function windowList(label: string, wins: Win[], t: string[]): HTMLLIElement {
 
 function applyEngineState(): void {
   marginIn.disabled = engine === null;
+  benchBtn.disabled = engine === null;
   if (engineState === 'ok') {
-    statusEl.textContent = 'Calculations run in C++ compiled to WebAssembly, in this browser: Sun-disc visibility, Sun and Earth flags, windows, percentages, threshold checks, ranking and next sunset and Earthset. The page code reads inputs, formats dates and draws the table. Self-check at margin 0 against the precomputed data: passed (max difference ' + engineMaxDiff.toExponential(2) + ').';
+    statusEl.textContent = 'Calculations run in C++ compiled to WebAssembly, in this browser: Sun-disc visibility, Sun and Earth flags, windows, percentages, threshold checks, ranking, next sunset and Earthset, and the margin sweep. The page code reads inputs, formats dates and draws the table and the sweep chart. Self-check at margin 0 against the precomputed data: passed (max difference ' + engineMaxDiff.toExponential(2) + ').';
   } else if (engineState === 'failed') {
     statusEl.textContent = 'Margin slider unavailable: the calculation module did not load. Results use the TypeScript fallback and the precomputed Sun values at margin 0.';
   } else {
     statusEl.textContent = 'Loading the calculation module. Until it is ready, results use the TypeScript fallback and the precomputed Sun values at margin 0.';
+  }
+}
+
+function updateSweep(b: Bundle, rangeOk: boolean, from: number, to: number, margin: number): void {
+  if (!rangeOk) {
+    clearSweep(sweepEl, sweepNote, 'Fix the date range to see the sweep.');
+    return;
+  }
+  if (engine === null) {
+    clearSweep(sweepEl, sweepNote, engineState === 'loading'
+      ? 'Waiting for the calculation module.'
+      : 'The sweep needs the calculation engine, which did not load.');
+    return;
+  }
+  try {
+    const sites = KEYS.map((k) => b.sites[k]);
+    const labels = KEYS.map((k) => labelOf(k, b.sites[k]));
+    showSweep(sweepEl, sweepNote, engine, sites, labels, from, to, margin);
+  } catch (err) {
+    clearSweep(sweepEl, sweepNote, 'The sweep could not be drawn: ' + (err instanceof Error ? err.message : 'unknown error'));
   }
 }
 
@@ -301,6 +340,7 @@ function render(): void {
       rangeOk = true;
     }
   }
+  lastRange = rangeOk ? { from, to } : null;
 
   let margin = 0;
   if (engine !== null) {
@@ -325,7 +365,7 @@ function render(): void {
   for (const key of KEYS) {
     const s = b.sites[key];
     const p = horizonProblem(s);
-    if (p !== null) warningsEl.appendChild(banner('Warning:', s.label + ': ' + p + '. Results for this site do not use measured terrain.'));
+    if (p !== null) warningsEl.appendChild(banner('Warning:', labelOf(key, s) + ': ' + p + '. Results for this site do not use measured terrain.'));
   }
   const sources = new Set(KEYS.map((k) => b.sites[k].horizon_source));
   if (sources.size > 1) warningsEl.appendChild(banner('Warning:', 'The three sites use different horizon sources, so they may not be directly comparable.'));
@@ -347,15 +387,17 @@ function render(): void {
   }
   const rows = result.rows;
 
+  updateSweep(b, rangeOk, from, to, margin);
+
   tbody.replaceChildren();
   windowsEl.replaceChildren();
   if (!rangeOk) {
-    rangeNote.textContent = '';
+    rangeNote.textContent = 'The data set covers ' + formatUtc(t0).slice(0, 10) + ' to ' + formatUtc(tEnd).slice(0, 10) + ' (one year of hourly samples).';
     messageRow('No results: fix the range above.');
     return;
   }
 
-  rangeNote.textContent = 'Range: ' + formatUtc(t0 + from * HOUR_MS) + ' to ' + formatUtc(t0 + (to - 1) * HOUR_MS) + ' (' + (to - from) + ' hourly samples). Horizon margin: ' + margin.toFixed(1) + ' deg on both horizons.';
+  rangeNote.textContent = 'Range: ' + formatUtc(t0 + from * HOUR_MS) + ' to ' + formatUtc(t0 + (to - 1) * HOUR_MS) + ' (' + (to - from) + ' hourly samples). Horizon margin: ' + margin.toFixed(1) + ' deg on both horizons. The data set covers ' + formatUtc(t0).slice(0, 10) + ' to ' + formatUtc(tEnd).slice(0, 10) + ' (one year of hourly samples).';
 
   const verdictOn = thrOk;
   const order = result.order;
@@ -375,7 +417,7 @@ function render(): void {
     const tr = document.createElement('tr');
     const first = document.createElement('th');
     first.scope = 'row';
-    first.textContent = r.site.label;
+    first.textContent = labelOf(r.key, r.site);
     tr.appendChild(first);
     tr.appendChild(cell(pctText(r.sun.pct), 'num'));
     tr.appendChild(cell(longestText(r.sun.longestLit), 'num'));
@@ -394,7 +436,7 @@ function render(): void {
     const r = byKey.get(key);
     if (r === undefined) continue;
     const h = document.createElement('h3');
-    h.textContent = r.site.label;
+    h.textContent = labelOf(r.key, r.site);
     windowsEl.appendChild(h);
     const ul = document.createElement('ul');
     ul.appendChild(windowList('Sun-visible windows', r.sun.lit, r.site.t));
@@ -416,7 +458,7 @@ function showDetails(b: Bundle): void {
     const s = b.sites[key];
     const p = document.createElement('p');
     p.className = 'small muted';
-    p.textContent = s.label + ': ' + String(s.coordinates_note) + ' Horizon source: ' + String(s.horizon_source);
+    p.textContent = labelOf(key, s) + ': ' + String(s.coordinates_note) + ' Horizon source: ' + String(s.horizon_source);
     detailsEl.appendChild(p);
   }
 }
@@ -460,6 +502,7 @@ async function main(): Promise<void> {
     statusEl.textContent = 'Could not load the data: ' + (e instanceof Error ? e.message : 'unknown error');
     tbody.replaceChildren();
     messageRow('No data loaded.');
+    clearSweep(sweepEl, sweepNote, 'No data loaded.');
     return;
   }
   const b = bundle;
@@ -476,6 +519,15 @@ async function main(): Promise<void> {
   render();
   for (const el of [startIn, endIn, marginIn, thSun, thEarth, thDark, thOut, refIn]) el.addEventListener('input', render);
   onlyMeets.addEventListener('change', render);
+  benchBtn.addEventListener('click', () => {
+    const e = engine;
+    const r = lastRange;
+    if (e === null || r === null) {
+      benchOut.textContent = 'The benchmark needs the calculation engine and a valid date range.';
+      return;
+    }
+    void runBenchmark(e, KEYS.map((k) => b.sites[k]), r.from, r.to, benchBtn, benchOut);
+  });
   await startEngine(b);
 }
 

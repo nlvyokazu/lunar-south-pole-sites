@@ -5,26 +5,38 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Lunar south pole site comparison</title>
 <meta name="description" content="Compare three lunar south pole sites by Sun and Earth elevation against the terrain horizon, with sunlight and Earth-in-view windows and a thresholds table.">
+<meta name="color-scheme" content="dark">
+<meta name="theme-color" content="#14181d">
+<link rel="canonical" href="https://nlvyokazu.github.io/lunar-south-pole-sites/">
 <link rel="icon" href="./favicon.svg" type="image/svg+xml">
+<meta property="og:type" content="website">
+<meta property="og:title" content="Lunar south pole site comparison">
+<meta property="og:description" content="Sun and Earth visibility for three lunar south pole sites, calculated in the browser by a C++ engine compiled to WebAssembly.">
+<meta property="og:url" content="https://nlvyokazu.github.io/lunar-south-pole-sites/">
+<meta name="twitter:card" content="summary">
 <link rel="stylesheet" href="./site.css">
-<style>
-table { border-collapse: collapse; width: 100%; }
-th, td { border: 1px solid var(--border, #3a424d); padding: 0.35rem 0.5rem; text-align: left; vertical-align: top; }
-thead th { background: var(--panel, #1b2027); }
-td.num { text-align: right; font-family: var(--mono, ui-monospace, Consolas, monospace); }
-fieldset { border: 1px solid var(--border, #3a424d); border-radius: 2px; margin: 0 0 1rem; padding: 0.75rem; }
-.controls { display: grid; grid-template-columns: repeat(auto-fit, minmax(15rem, 1fr)); gap: 0.75rem; }
-.controls label { display: block; }
-input[type="text"], input[type="date"] { background: var(--panel, #1b2027); color: var(--text, #e8ecf1); border: 1px solid var(--border, #3a424d); border-radius: 2px; padding: 0.3rem; width: 100%; box-sizing: border-box; }
-input[type="range"] { width: 100%; }
-</style>
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "WebApplication",
+  "name": "Lunar south pole site comparison",
+  "url": "https://nlvyokazu.github.io/lunar-south-pole-sites/",
+  "description": "Compares three lunar south pole sites by Sun and Earth elevation against the terrain horizon, with Sun-visible and Earth-in-view windows and a thresholds table. Geometry only.",
+  "applicationCategory": "ScienceApplication",
+  "operatingSystem": "Any",
+  "isAccessibleForFree": true,
+  "inLanguage": "en"
+}
+</script>
 </head>
 <body>
-<main>
+<header>
 <h1>Lunar south pole site comparison</h1>
 <p>This page compares three lunar south pole sites over a date range you choose. For each site it shows how much of the time the Sun and the Earth are above the local terrain horizon, the longest dark and Earth-out periods, and the time to the next sunset and Earthset. It then checks each site against thresholds you set. Geometry only: there is no power, thermal or antenna model. <a href="./limits.html">Limits and method</a>.</p>
 <p id="status" class="small muted" aria-live="polite">Loading data</p>
 <div id="warnings"></div>
+</header>
+<main>
 
 <h2>Controls</h2>
 <fieldset>
@@ -50,7 +62,7 @@ input[type="range"] { width: 100%; }
 
 <h2>Comparison</h2>
 <p id="range-note" class="small muted"></p>
-<p><label><input type="checkbox" id="only-meets"> Show only sites that meet all thresholds</label></p>
+<p><label class="inline"><input type="checkbox" id="only-meets"> Show only sites that meet all thresholds</label></p>
 <div class="table-wrap">
 <table>
 <thead>
@@ -72,12 +84,25 @@ input[type="range"] { width: 100%; }
 </tr>
 </thead>
 <tbody id="rows">
-<tr><td colspan="14">Loading data</td></tr>
+<tr class="skeleton"><th scope="row">Malapert A rim</th><td colspan="13">Waiting for data</td></tr>
+<tr class="skeleton"><th scope="row">Nobile Crater W rim</th><td colspan="13">Waiting for data</td></tr>
+<tr class="skeleton"><th scope="row">Near Amundsen</th><td colspan="13">Waiting for data</td></tr>
 </tbody>
 </table>
 </div>
 <p class="small muted">Samples are hourly. A length shown with ">=" belongs to a run that touches the edge of the selected range and may continue past it. A site cannot pass a maximum-length limit on such a run alone. Next sunset and Earthset are searched over the whole data set, not only the selected range.</p>
+<p class="small muted">Rank orders the sites by the rules on the <a href="./limits.html">limits page</a>. It is an ordering of these numbers, not a recommendation of a site.</p>
 <noscript><p>This page needs JavaScript to compute the table. The method and limits are described in <a href="./limits.html">limits.html</a>.</p></noscript>
+
+<h2>Horizon margin sweep</h2>
+<p>Sun-visible share of the selected range for each site, as the horizon margin goes from 0.0 to 5.0 degrees in steps of 0.1. The calculation engine recomputes all 153 points (3 sites, 51 margins) whenever you change the date range.</p>
+<div id="sweep"><p class="muted">Waiting for the calculation module.</p></div>
+<p id="sweep-note" class="small muted"></p>
+
+<h2>Benchmark in this browser</h2>
+<p>Times the same sweep with the C++ engine and with a plain TypeScript version of the same Sun-disc formula, on this device. The numbers are measured when you press the button. Nothing is stored or sent.</p>
+<p><button type="button" id="bench-run" disabled>Run benchmark</button></p>
+<div id="bench-out" aria-live="polite"></div>
 
 <h2>Windows per site</h2>
 <div id="windows"></div>
@@ -88,6 +113,7 @@ input[type="range"] { width: 100%; }
 <footer>
 <ul>
 <li><a href="./limits.html">Limits and method</a></li>
+<li><a href="https://github.com/nlvyokazu/lunar-south-pole-sites">Source code</a></li>
 </ul>
 <p class="small muted">Code written with AI assistance. See <a href="./limits.html">limits.html</a>.</p>
 </footer>
