@@ -4,8 +4,9 @@ import {
   sunFlags, earthFlags, summarize, parseThreshold, minCheck, maxRunCheckAll,
   overall, rankSites, nextTransition, parseUtc, formatUtc, fmtHours,
 } from './model';
-import type { LitKernel } from './lit';
-import { loadLit, checkAgainstBundle } from './lit';
+import type { Engine, Summary, RankRow, Transition, Overall } from './engine';
+import { loadEngine } from './engine';
+import { checkAgainstBundle } from './lit';
 
 const KEYS = ['malapert_a', 'nobile_w', 'amundsen'] as const;
 const HOUR_MS = 3600000;
@@ -13,17 +14,59 @@ const DAY_MS = 86400000;
 const COLS = 14;
 const MAX_WINDOWS = 60;
 
-type Summ = ReturnType<typeof summarize>;
+// One set of calculation functions. The C++ engine fills it when it is running.
+// The TypeScript model fills it when the engine is not available.
+interface Calc {
+  sunFlags(s: SiteData, margin: number): Int8Array;
+  earthFlags(s: SiteData, margin: number): Int8Array;
+  summarize(flags: ArrayLike<number>, from: number, to: number): Summary;
+  minCheck(pct: number | null, min: number | null): 'PASS' | 'FAIL' | 'NONE';
+  maxRunCheckAll(runs: Win[], maxHours: number | null, rangeHours: number): Check;
+  overall(checks: Check[]): Overall;
+  rankSites(rows: RankRow[]): string[];
+  nextTransition(flags: ArrayLike<number>, ref: number, kind: 'fall' | 'rise'): Transition;
+}
+
+// Fallback. The margin is always 0 in this mode, so Sun flags come from the bundle lit values.
+const tsCalc: Calc = {
+  sunFlags: (s) => sunFlags(s.lit),
+  earthFlags: (s, margin) => earthFlags(s.earthAlt, s.earthHorizon, margin),
+  summarize,
+  minCheck,
+  maxRunCheckAll,
+  overall,
+  rankSites,
+  nextTransition,
+};
+
+function engineCalc(e: Engine): Calc {
+  return {
+    sunFlags: (s, margin) => e.sunFlagsFromBodies(s.sunAlt, s.sunHorizon, s.sunRadius, margin),
+    earthFlags: (s, margin) => e.earthFlags(s.earthAlt, s.earthHorizon, margin),
+    summarize: (f, from, to) => e.summarize(f, from, to),
+    minCheck: (p, m) => e.minCheck(p, m),
+    maxRunCheckAll: (r, m, h) => e.maxRunCheckAll(r, m, h),
+    overall: (c) => e.overall(c),
+    rankSites: (r) => e.rankSites(r),
+    nextTransition: (f, r, k) => e.nextTransition(f, r, k),
+  };
+}
+
 interface Row {
   key: string;
   site: SiteData;
-  sun: Summ;
-  earth: Summ;
+  sun: Summary;
+  earth: Summary;
   checks: Check[];
-  verdict: ReturnType<typeof overall>;
+  verdict: Overall;
   fails: number;
   nextSunset: string;
   nextEarthset: string;
+}
+
+interface Analysis {
+  rows: Row[];
+  order: string[];
 }
 
 function byId<T extends HTMLElement>(id: string): T {
@@ -51,9 +94,10 @@ const windowsEl = byId<HTMLElement>('windows');
 const detailsEl = byId<HTMLElement>('details');
 
 let bundle: Bundle | null = null;
-let kernel: LitKernel | null = null;
-let kernelState: 'loading' | 'ok' | 'failed' = 'loading';
-let kernelMaxDiff = 0;
+let engine: Engine | null = null;
+let calc: Calc = tsCalc;
+let engineState: 'loading' | 'ok' | 'failed' = 'loading';
+let engineMaxDiff = 0;
 
 function validate(raw: unknown): Bundle {
   if (typeof raw !== 'object' || raw === null) throw new Error('data file is not an object');
@@ -92,19 +136,6 @@ function horizonProblem(s: SiteData): string | null {
   return null;
 }
 
-function sunFlagsFor(s: SiteData, margin: number): Int8Array {
-  if (kernel !== null) {
-    try {
-      return sunFlags(kernel.compute(s.sunAlt, s.sunHorizon, s.sunRadius, margin));
-    } catch {
-      kernel = null;
-      kernelState = 'failed';
-      applyKernelState();
-    }
-  }
-  return sunFlags(s.lit);
-}
-
 function pctText(p: number | null): string {
   return p === null ? 'n/a' : p.toFixed(1) + ' %';
 }
@@ -128,8 +159,8 @@ function verdictText(v: string): string {
   return '-';
 }
 
-function eventText(flags: Int8Array, ref: number, kind: 'fall' | 'rise', t: string[]): string {
-  const r = nextTransition(flags, ref, kind);
+function eventText(c: Calc, flags: Int8Array, ref: number, kind: 'fall' | 'rise', t: string[]): string {
+  const r = c.nextTransition(flags, ref, kind);
   let txt: string;
   if (r.index === null) txt = 'none before ' + formatUtc(parseUtc(t[t.length - 1]));
   else if (r.within) txt = 'within the hour (by ' + formatUtc(parseUtc(t[r.index])) + ')';
@@ -197,15 +228,48 @@ function windowList(label: string, wins: Win[], t: string[]): HTMLLIElement {
   return li;
 }
 
-function applyKernelState(): void {
-  marginIn.disabled = kernel === null;
-  if (kernelState === 'ok') {
-    statusEl.textContent = 'Sun-visible hours are computed by C++ compiled to WebAssembly, running in this browser. Check against the bundle at margin 0: passed (max difference ' + kernelMaxDiff.toExponential(2) + ').';
-  } else if (kernelState === 'failed') {
-    statusEl.textContent = 'Margin slider unavailable: the calculation module did not load. Sun-visible hours use the precomputed values at margin 0.';
+function applyEngineState(): void {
+  marginIn.disabled = engine === null;
+  if (engineState === 'ok') {
+    statusEl.textContent = 'Calculations run in C++ compiled to WebAssembly, in this browser: Sun-disc visibility, Sun and Earth flags, windows, percentages, threshold checks, ranking and next sunset and Earthset. The page code reads inputs, formats dates and draws the table. Self-check at margin 0 against the precomputed data: passed (max difference ' + engineMaxDiff.toExponential(2) + ').';
+  } else if (engineState === 'failed') {
+    statusEl.textContent = 'Margin slider unavailable: the calculation module did not load. Results use the TypeScript fallback and the precomputed Sun values at margin 0.';
   } else {
-    statusEl.textContent = 'Loading the calculation module. Until it is ready, Sun-visible hours use the precomputed values at margin 0.';
+    statusEl.textContent = 'Loading the calculation module. Until it is ready, results use the TypeScript fallback and the precomputed Sun values at margin 0.';
   }
+}
+
+function analyse(
+  c: Calc, b: Bundle, margin: number, from: number, to: number,
+  thr: (number | null)[], thrOk: boolean, refOk: boolean, refIdx: number,
+): Analysis {
+  const hrs = to - from;
+  const rows: Row[] = [];
+  for (const key of KEYS) {
+    const site = b.sites[key];
+    const sunF = c.sunFlags(site, margin);
+    const earthF = c.earthFlags(site, margin);
+    const sun = c.summarize(sunF, from, to);
+    const earth = c.summarize(earthF, from, to);
+    const checks: Check[] = [
+      c.minCheck(sun.pct, thr[0]),
+      c.minCheck(earth.pct, thr[1]),
+      c.maxRunCheckAll(sun.dark, thr[2], hrs),
+      c.maxRunCheckAll(earth.dark, thr[3], hrs),
+    ];
+    rows.push({
+      key, site, sun, earth, checks,
+      verdict: c.overall(checks),
+      fails: checks.filter((x) => x === 'FAIL').length,
+      nextSunset: refOk ? eventText(c, sunF, refIdx, 'fall', site.t) : 'n/a',
+      nextEarthset: refOk ? eventText(c, earthF, refIdx, 'fall', site.t) : 'n/a',
+    });
+  }
+  let order: string[] = rows.map((r) => r.key);
+  if (thrOk) {
+    order = c.rankSites(rows.map((r) => ({ key: r.key, overall: r.verdict, fails: r.fails, sunPct: r.sun.pct, earthPct: r.earth.pct })));
+  }
+  return { rows, order };
 }
 
 function render(): void {
@@ -239,7 +303,7 @@ function render(): void {
   }
 
   let margin = 0;
-  if (kernel !== null) {
+  if (engine !== null) {
     const m = Number(marginIn.value);
     margin = Number.isFinite(m) ? Math.min(5, Math.max(0, m)) : 0;
   }
@@ -266,30 +330,22 @@ function render(): void {
   const sources = new Set(KEYS.map((k) => b.sites[k].horizon_source));
   if (sources.size > 1) warningsEl.appendChild(banner('Warning:', 'The three sites use different horizon sources, so they may not be directly comparable.'));
 
-  const rows: Row[] = [];
+  let result: Analysis = { rows: [], order: [] };
   if (rangeOk) {
-    const hrs = to - from;
-    for (const key of KEYS) {
-      const site = b.sites[key];
-      const sunF = sunFlagsFor(site, margin);
-      const earthF = earthFlags(site.earthAlt, site.earthHorizon, margin);
-      const sun = summarize(sunF, from, to);
-      const earth = summarize(earthF, from, to);
-      const checks: Check[] = [
-        minCheck(sun.pct, thr[0]),
-        minCheck(earth.pct, thr[1]),
-        maxRunCheckAll(sun.dark, thr[2], hrs),
-        maxRunCheckAll(earth.dark, thr[3], hrs),
-      ];
-      rows.push({
-        key, site, sun, earth, checks,
-        verdict: overall(checks),
-        fails: checks.filter((c) => c === 'FAIL').length,
-        nextSunset: refOk ? eventText(sunF, refIdx, 'fall', site.t) : 'n/a',
-        nextEarthset: refOk ? eventText(earthF, refIdx, 'fall', site.t) : 'n/a',
-      });
+    try {
+      result = analyse(calc, b, margin, from, to, thr, thrOk, refOk, refIdx);
+    } catch (err) {
+      if (calc === tsCalc) throw err;
+      engine = null;
+      engineState = 'failed';
+      calc = tsCalc;
+      margin = 0;
+      marginOut.textContent = margin.toFixed(1);
+      applyEngineState();
+      result = analyse(tsCalc, b, margin, from, to, thr, thrOk, refOk, refIdx);
     }
   }
+  const rows = result.rows;
 
   tbody.replaceChildren();
   windowsEl.replaceChildren();
@@ -302,12 +358,9 @@ function render(): void {
   rangeNote.textContent = 'Range: ' + formatUtc(t0 + from * HOUR_MS) + ' to ' + formatUtc(t0 + (to - 1) * HOUR_MS) + ' (' + (to - from) + ' hourly samples). Horizon margin: ' + margin.toFixed(1) + ' deg on both horizons.';
 
   const verdictOn = thrOk;
-  let order: string[] = rows.map((r) => r.key);
+  const order = result.order;
   const rankOf = new Map<string, number>();
-  if (verdictOn) {
-    order = rankSites(rows.map((r) => ({ key: r.key, overall: r.verdict, fails: r.fails, sunPct: r.sun.pct, earthPct: r.earth.pct })));
-    order.forEach((k, i) => rankOf.set(k, i + 1));
-  }
+  if (verdictOn) order.forEach((k, i) => rankOf.set(k, i + 1));
   const byKey = new Map<string, Row>(rows.map((r) => [r.key, r]));
   const meets = (r: Row): boolean => r.verdict === 'MEETS' || r.verdict === 'MEETS_OPEN';
   const shown = order.filter((k) => {
@@ -368,27 +421,33 @@ function showDetails(b: Bundle): void {
   }
 }
 
-async function startKernel(b: Bundle): Promise<void> {
+async function startEngine(b: Bundle): Promise<void> {
   try {
-    const url = new URL('./engine/lit_kernel.mjs', document.baseURI).href;
-    const k = await loadLit(url);
-    let ok = true;
+    const url = new URL('./engine/engine.mjs', document.baseURI).href;
+    const e = await loadEngine(url);
     let maxDiff = 0;
     for (const key of KEYS) {
       const s = b.sites[key];
-      const c = checkAgainstBundle(k.compute(s.sunAlt, s.sunHorizon, s.sunRadius, 0), s.lit);
-      if (!c.passed) ok = false;
+      const c = checkAgainstBundle(e.lit(s.sunAlt, s.sunHorizon, s.sunRadius, 0), s.lit);
+      if (!c.passed) throw new Error('Sun self-check failed');
       if (c.maxDiff > maxDiff) maxDiff = c.maxDiff;
+      const got = e.earthFlags(s.earthAlt, s.earthHorizon, 0);
+      const want = earthFlags(s.earthAlt, s.earthHorizon, 0);
+      if (got.length !== want.length) throw new Error('Earth self-check failed');
+      for (let i = 0; i < got.length; i++) {
+        if (got[i] !== want[i]) throw new Error('Earth self-check failed');
+      }
     }
-    if (!ok) throw new Error('self-check failed');
-    kernel = k;
-    kernelState = 'ok';
-    kernelMaxDiff = maxDiff;
+    engine = e;
+    calc = engineCalc(e);
+    engineState = 'ok';
+    engineMaxDiff = maxDiff;
   } catch {
-    kernel = null;
-    kernelState = 'failed';
+    engine = null;
+    calc = tsCalc;
+    engineState = 'failed';
   }
-  applyKernelState();
+  applyEngineState();
   render();
 }
 
@@ -413,11 +472,11 @@ async function main(): Promise<void> {
   startIn.max = endIn.max = formatUtc(t0 + (n / 24 - 1) * DAY_MS).slice(0, 10);
   refIn.value = formatUtc(t0).replace(' UTC', '');
   showDetails(b);
-  applyKernelState();
+  applyEngineState();
   render();
   for (const el of [startIn, endIn, marginIn, thSun, thEarth, thDark, thOut, refIn]) el.addEventListener('input', render);
   onlyMeets.addEventListener('change', render);
-  await startKernel(b);
+  await startEngine(b);
 }
 
 void main();
