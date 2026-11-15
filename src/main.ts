@@ -253,7 +253,7 @@ function applyEngineState(): void {
   marginIn.disabled = engine === null;
   benchBtn.disabled = engine === null;
   if (engineState === 'ok') {
-    statusEl.textContent = 'Calculations run in C++ compiled to WebAssembly, in this browser: Sun-disc visibility, Sun and Earth flags, windows, percentages, threshold checks, ranking, next sunset and Earthset, and the margin sweep. The page code reads inputs, formats dates and draws the table and the sweep chart. Self-check at margin 0 against the precomputed data: passed (max difference ' + engineMaxDiff.toExponential(2) + ').';
+    statusEl.textContent = 'Calculations run in C++ compiled to WebAssembly, in this browser: Sun-disc visibility, Sun and Earth flags, windows, percentages, threshold checks, ranking, next sunset and Earthset, and the margin sweep. The page code reads inputs, formats dates and draws the table, the elevation charts and the sweep chart. Self-check at margin 0 against the precomputed data: passed (max difference ' + engineMaxDiff.toExponential(2) + ').';
   } else if (engineState === 'failed') {
     statusEl.textContent = 'Margin slider unavailable: the calculation module did not load. Results use the TypeScript fallback and the precomputed Sun values at margin 0.';
   } else {

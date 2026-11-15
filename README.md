@@ -22,7 +22,7 @@ only orders the sites by fixed rules and is not a recommendation.
   WebAssembly. In the browser it computes Sun-disc visibility, Sun and Earth flags,
   windows, percentages, threshold checks, ranking and the next sunset and Earthset.
 - `src/engine.ts` loads the engine and moves data in and out of its memory.
-- `src/main.ts` is the page. It reads inputs, formats dates and draws the table.
+- `src/main.ts` is the page. It reads inputs, formats dates and draws the table and the charts.
 - `src/model.ts` is a TypeScript copy of the same logic. It is the fallback if the
   engine does not load, and the reference the engine is tested against.
 - At start-up the page runs the engine at margin 0 and compares the Sun output with

@@ -33,7 +33,7 @@
 <h2>Where the calculations run</h2>
 <ul>
 <li>In your browser, a C++ engine compiled to WebAssembly computes Sun-disc visibility, Sun and Earth flags, windows, percentages, threshold checks, ranking and the next sunset and Earthset.</li>
-<li>The page code, written in TypeScript, reads your inputs, formats dates and draws the table.</li>
+<li>The page code, written in TypeScript, reads your inputs, formats dates and draws the table, the elevation charts and the sweep chart. The elevation charts are drawn from the precomputed positions, not by the engine.</li>
 <li>When the page starts, the engine output at margin 0 is checked against the precomputed data. If the engine does not load or the check fails, the page says so, disables the margin slider, and uses TypeScript copies of the same logic with the precomputed Sun values at margin 0.</li>
 <li>The precomputed data is made offline by Python scripts, not by C++. Those scripts read the SPICE kernels and the terrain model once. The page then loads the result as a fixed file.</li>
 </ul>
